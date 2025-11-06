@@ -22,6 +22,7 @@ const scoreArr = [];
 let startTime, endTime;
 let totalTime = 0;
 let fastestTime = Infinity;
+let prevAvgTime = null; // track previous average time to color avg up/down
 
 const playBtn = document.getElementById("playBtn");
 const guessBtn = document.getElementById("guessBtn");
@@ -59,6 +60,8 @@ function play() {
 
     answer = Math.floor(Math.random() * level) + 1;
     msg.textContent = `${playerName}, guess a number between 1 and ${level}`;
+    // reset color for normal instructional message
+    msg.style.color = "";
     guessInput.value = "";
     score = 0;
     startTime = new Date().getTime();
@@ -69,19 +72,23 @@ function makeGuess() {
 
     if (isNaN(userGuess) || userGuess < 1 || userGuess > level) {
         msg.textContent = `❌ Invalid input, ${playerName}! Enter a number between 1 and ${level}.`;
+        msg.style.color = ""; // keep invalid input in default color
         return;
     }
 
     score++;
     let diff = Math.abs(userGuess - answer);
 
-    // Temperature feedback
+    // Temperature feedback with color changes
     if (diff >= level / 2) {
-        msg.textContent = " Cold! Try again.";
+        msg.textContent = "Cold! Try again.";
+        msg.style.color = "#003366";
     } else if (diff >= level / 4) {
         msg.textContent = "Warm! Getting closer.";
+        msg.style.color = "#cc5500";
     } else if (diff > 0) {
         msg.textContent = "Hot! You're very close!";
+        msg.style.color = "#cc0000";
     }
 
     if (userGuess === answer) {
@@ -94,6 +101,7 @@ function makeGuess() {
         else if (score <= 6) performance = "Pretty good! ";
         else performance = "You can do better next time! ";
         msg.textContent = `🎉 Correct, ${playerName}! You guessed it in ${score} tries and ${roundTime}s. ${performance}`;
+        msg.style.color = "";
         updateScore(roundTime);
         reset();
     }
@@ -101,7 +109,8 @@ function makeGuess() {
 
 function giveUp() {
     score = parseInt(level);
-    msg.textContent = ` You gave up, ${playerName}. The correct number was ${answer}. Score set to ${score}.`;
+    msg.textContent = `You gave up, ${playerName}. The correct number was ${answer}. Score set to ${score}.`;
+    msg.style.color = "";
     endTime = new Date().getTime();
     const roundTime = ((endTime - startTime) / 1000).toFixed(2);
     totalTime += parseFloat(roundTime);
@@ -130,12 +139,25 @@ function updateScore(roundTime) {
     let sum = scoreArr.reduce((a, b) => a + b, 0);
     let avg = sum / scoreArr.length;
     avgScore.textContent = "Average Score: " + avg.toFixed(2);
-    const avgTime = (totalTime / scoreArr.length).toFixed(2);
+    // compute numeric average time and format
+    const avgTimeNum = totalTime / scoreArr.length;
+    const avgTime = avgTimeNum.toFixed(2);
     if (!document.getElementById("timeStats")) {
         const timeStats = document.createElement("p");
         timeStats.id = "timeStats";
         document.body.appendChild(timeStats);
     }
-    document.getElementById("timeStats").textContent =
-        `Fastest Time: ${fastestTime === Infinity ? "N/A" : fastestTime + "s"} | Avg Time: ${avgTime}s`;
+    // choose color based on whether avg time increased or decreased vs previous
+    let avgColor = "";
+    if (prevAvgTime !== null) {
+        if (avgTimeNum < prevAvgTime) avgColor = "green"; // improved (decreased)
+        else if (avgTimeNum > prevAvgTime) avgColor = "red"; // worsened (increased)
+    }
+
+    const fastestStr = fastestTime === Infinity ? "N/A" : fastestTime + "s";
+    document.getElementById("timeStats").innerHTML =
+        `Fastest Time: ${fastestStr} | Avg Time: <span id="avgTime" style="color:${avgColor}">${avgTime}s</span>`;
+
+    // store current avg for next comparison
+    prevAvgTime = avgTimeNum;
 }
