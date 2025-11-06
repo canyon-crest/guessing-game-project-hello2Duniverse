@@ -11,6 +11,7 @@
     <input type="radio" name="level" id="e" value="3" checked><label for="e">Easy</label>
     <input type="radio" name="level" id="m" value="10"><label for="m">Medium</label>
     <input type="radio" name="level" id="h" value="100"><label for="h">Hard</label>
+  <input type="radio" name="level" id="x" value="1000" disabled><label for="x">Expert (unlock)</label>
 
     <button id="playBtn">Play</button>
 
@@ -18,6 +19,8 @@
     <input type="text" id="guess">
     <button id="guessBtn" disabled>Guess</button>
     <button id="giveUp" disabled>Give Up</button>
+  <!-- Hint button available only for Medium and Hard levels -->
+  <button id="hintBtn" disabled>Hint</button>
 
     <h3>Stats</h3>
     <p id="wins">Total wins: 0</p>

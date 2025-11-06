@@ -11,10 +11,12 @@ function updateDateTime() {
     const hours = String(d.getHours()).padStart(2, "0");
     const minutes = String(d.getMinutes()).padStart(2, "0");
     const seconds = String(d.getSeconds()).padStart(2, "0");
-    date.textContent = `${monthName} ${day}${suffix}, ${year} - ${hours}:${minutes}:${seconds}`;
+    const ms = String(d.getMilliseconds()).padStart(3, "0");
+    date.textContent = `${monthName} ${day}${suffix}, ${year} - ${hours}:${minutes}:${seconds}.${ms}`;
 }
 
-setInterval(updateDateTime, 1000);
+// update more frequently so milliseconds are visible
+setInterval(updateDateTime, 50);
 updateDateTime();
 let score, answer, level, playerName;
 const levelArr = document.getElementsByName("level");
@@ -23,16 +25,20 @@ let startTime, endTime;
 let totalTime = 0;
 let fastestTime = Infinity;
 let prevAvgTime = null; // track previous average time to color avg up/down
+let expertUnlocked = false; // track whether Expert level is unlocked
 
 const playBtn = document.getElementById("playBtn");
 const guessBtn = document.getElementById("guessBtn");
 const giveUpBtn = document.getElementById("giveUp");
 const guessInput = document.getElementById("guess");
 const msg = document.getElementById("msg");
+const hintBtn = document.getElementById("hintBtn");
+const expertRadio = document.getElementById("x");
 
 playBtn.addEventListener("click", play);
 guessBtn.addEventListener("click", makeGuess);
 giveUpBtn.addEventListener("click", giveUp);
+hintBtn.addEventListener("click", showHint);
 
 function askName() {
     playerName = prompt("Please enter your name:");
@@ -54,7 +60,7 @@ function play() {
     for (let i = 0; i < levelArr.length; i++) {
         levelArr[i].disabled = true;
         if (levelArr[i].checked) {
-            level = levelArr[i].value;
+            level = parseInt(levelArr[i].value, 10);
         }
     }
 
@@ -62,6 +68,8 @@ function play() {
     msg.textContent = `${playerName}, guess a number between 1 and ${level}`;
     // reset color for normal instructional message
     msg.style.color = "";
+    // enable hint button for Medium/Hard only
+    if (hintBtn) hintBtn.disabled = level < 10;
     guessInput.value = "";
     score = 0;
     startTime = new Date().getTime();
@@ -101,7 +109,14 @@ function makeGuess() {
         else if (score <= 6) performance = "Pretty good! ";
         else performance = "You can do better next time! ";
         msg.textContent = `🎉 Correct, ${playerName}! You guessed it in ${score} tries and ${roundTime}s. ${performance}`;
-        msg.style.color = "";
+        msg.style.color = "green"; // show the entire correct message in green
+        // If they solved a Hard level (100), unlock Expert (1000)
+        if (level === 100 && expertRadio) {
+            expertUnlocked = true;
+            expertRadio.disabled = false;
+            // inform the player
+            msg.textContent += "\nExpert level unlocked!";
+        }
         updateScore(roundTime);
         reset();
     }
@@ -122,10 +137,51 @@ function reset() {
     guessBtn.disabled = true;
     guessInput.disabled = true;
     giveUpBtn.disabled = true;
+    if (hintBtn) hintBtn.disabled = true;
     playBtn.disabled = false;
     for (let i = 0; i < levelArr.length; i++) {
-        levelArr[i].disabled = false;
+        // keep Expert disabled unless unlocked
+        if (levelArr[i].id === "x") {
+            levelArr[i].disabled = !expertUnlocked;
+        } else {
+            levelArr[i].disabled = false;
+        }
     }
+}
+
+function showHint() {
+    // Only allow hint during an active game
+    if (!playBtn.disabled) {
+        msg.textContent = "Start a game first to request a hint.";
+        msg.style.color = "";
+        return;
+    }
+
+    const userGuess = parseInt(guessInput.value, 10);
+    if (isNaN(userGuess)) {
+        msg.textContent = "Make a guess first to request a hint.";
+        msg.style.color = "";
+        return;
+    }
+
+    const diff = Math.abs(userGuess - answer);
+    // Only provide a hint if the user is 'cold' (as defined earlier)
+    if (diff < level / 2) {
+        msg.textContent = "You're not cold enough to need a hint yet.";
+        msg.style.color = "";
+        return;
+    }
+
+    // Determine a smaller hint range around the answer. This scales with level.
+    const halfRange = Math.max(1, Math.ceil(level / 10));
+    const min = Math.max(1, answer - halfRange);
+    const max = Math.min(level, answer + halfRange);
+
+    msg.textContent = `Hint: the number is between ${min} and ${max}.`;
+    msg.style.color = "#006400"; // dark green for hint
+
+    // Disable hint after use for this round
+    if (hintBtn) hintBtn.disabled = true;
 }
 
 function updateScore(roundTime) {
@@ -148,10 +204,11 @@ function updateScore(roundTime) {
         document.body.appendChild(timeStats);
     }
     // choose color based on whether avg time increased or decreased vs previous
+    // use explicit hex colors so red/green are visually clear
     let avgColor = "";
     if (prevAvgTime !== null) {
-        if (avgTimeNum < prevAvgTime) avgColor = "green"; // improved (decreased)
-        else if (avgTimeNum > prevAvgTime) avgColor = "red"; // worsened (increased)
+        if (avgTimeNum < prevAvgTime) avgColor = "#006400"; // dark green for improved (decreased)
+        else if (avgTimeNum > prevAvgTime) avgColor = "#cc0000"; // red for worsened (increased)
     }
 
     const fastestStr = fastestTime === Infinity ? "N/A" : fastestTime + "s";
